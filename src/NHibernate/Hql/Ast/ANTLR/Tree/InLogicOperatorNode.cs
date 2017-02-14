@@ -43,8 +43,11 @@ namespace NHibernate.Hql.Ast.ANTLR.Tree
 			{
 				IType lhsType = lhsNode.DataType;
 				IASTNode inListChild = inList.GetChild(0);
+				var shouldProcessMetaTypeDiscriminator = ShouldProcessMetaTypeDiscriminator(lhs);
 				while (inListChild != null)
 				{
+					if (shouldProcessMetaTypeDiscriminator)
+						ProcessMetaTypeDiscriminatorIfNecessary(lhs, inListChild);
 					var expectedTypeAwareNode = inListChild as IExpectedTypeAwareNode;
 					if (expectedTypeAwareNode != null)
 					{
@@ -53,6 +56,35 @@ namespace NHibernate.Hql.Ast.ANTLR.Tree
 					inListChild = inListChild.NextSibling;
 				}
 			}
+		}
+
+		private bool ShouldProcessMetaTypeDiscriminator(IASTNode lhs)
+		{
+			// This was adapted from BinaryLogicOperatorNode.ProcessMetaTypeDiscriminatorIfNecessary
+			var lhsNode = lhs as SqlNode;
+			if (lhsNode == null)
+			{
+				return false;
+			}
+			return lhsNode.DataType is MetaType;
+		}
+
+		private void ProcessMetaTypeDiscriminatorIfNecessary(IASTNode lhs, IASTNode rhs)
+		{
+			// this method inserts the discriminator value for the rhs node so that .class queries on <any> mappings work with the class name
+			var lhsNode = lhs as SqlNode;
+			var rhsNode = rhs as SqlNode;
+			if (rhsNode == null)
+			{
+				return;
+			}
+
+			var lhsNodeMetaType = lhsNode.DataType as MetaType;
+			string className = SessionFactoryHelper.GetImportedClassName(rhsNode.OriginalText);
+
+			object discriminatorValue = lhsNodeMetaType.GetMetaValue(NHibernate.Util.TypeNameParser.Parse(className).Type);
+			rhsNode.Text = discriminatorValue.ToString();
+			return;
 		}
 	}
 }

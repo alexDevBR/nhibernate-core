@@ -85,6 +85,20 @@ namespace NHibernate.Test.NHSpecificTest.NH2328
 		}
 
 		[Test]
+		public void AnyIs_HqlWorksWithMultipleClasses()
+		{
+			using (ISession s = OpenSession())
+			{
+				var boxes =
+					s.CreateQuery("from ToyBox t where t.Shape.class in (Square, Circle)")
+						.List<ToyBox>();
+				Assert.That(boxes.Count, Is.EqualTo(2));
+				Assert.That(boxes.Select(x => x.Name), Has.Some.EqualTo("Box1"));
+				Assert.That(boxes.Select(x => x.Name), Has.Some.EqualTo("Box2"));
+			}
+		}
+
+		[Test]
 		public void AnyIs_HqlWorksWithClassNameInTheLeft()
 		{
 			using (ISession s = OpenSession())
